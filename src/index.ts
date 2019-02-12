@@ -14,8 +14,9 @@ const DEFAULT_OUTPUT_DIR = '~/Downloads/youtube';
 const DEFAULT_OUTPUT_NAME_SINGLE = '[%(uploader)s] %(title)s.%(ext)s';
 const DEFAULT_OUTPUT_NAME_LIST = `%(playlist)s/${DEFAULT_OUTPUT_NAME_SINGLE}`;
 const DEFAULT_VERTICAL_RESOLUTION = '720';
-const DEFAULT_SOCKS5_HOST = '127.0.0.1';
-const DEFAULT_SOCKS5_PORT = '1086';
+const DEFAULT_PROXY_PROTOCOL = 'socks5';
+const DEFAULT_PROXY_HOST = '127.0.0.1';
+const DEFAULT_PROXY_PORT = '1086';
 /**
  * 140          m4a        audio only DASH audio  130k , m4a_dash container, mp4a.40.2@128k
  * 136          mp4        1280x720   720p 2338k , avc1.4d401f, 30fps, video only
@@ -28,25 +29,12 @@ const DEFAULT_SOCKS5_PORT = '1086';
  * 315          webm       3840x2160  2160p60 26725k , vp9, 60fps, video only
  */
 const VALID_VERTICAL_RESOLUTION = ['720', '1080', '1440', '2160'];
-const DEFAULT_FORMAT = {
-    '720': {
-        '30': '136+140',
-        '60': '298+140'
-    },
-    '1080': {
-        '30': '137+140',
-        '60': '299+140'
-    },
-    '1440': {
-        '30': '271+140',
-        '60': '308+140'
-    },
-    '2160': {
-        '30': '313+140',
-        '60': '315+140'
-    }
+const DEFAULT_FORMAT = { // 60fps first
+    '720': '298+140/136+140',
+    '1080': '299+140/137+140',
+    '1440': '308+140/271+140',
+    '2160': '315+140/313+140',
 };
-const ERROR_UNAVAILABLE_FORMAT = 'ERROR: requested format not available';
 
 let IS_SOURCE_LISTFILE = false;
 let IS_SOURCE_PLAYLIST = false;
@@ -71,9 +59,10 @@ program.version(pkg.version)
     )
     .option('-F, --list-formats <boolean>', 'same as youtube-dl -F, list all available formats of video')
     .option('-V, --vertical-resolution <number>', `vertical resolution, default is "720", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`)
-    .option('-D, --disable-socks5-proxy <boolean>', 'disable socks5 proxy, by default it is enabled')
-    .option('-H, --socks5-host <string>', 'socks5 proxy host, default is "127.0.0.1"')
-    .option('-P, --socks5-port <number>', 'socks5 proxy port, default is "1086"')
+    .option('-D, --disable-proxy <boolean>', 'disable proxy, by default it is enabled')
+    .option('-R, --proxy-protocol <string>', 'proxy protocol, default is "socks5"')
+    .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
+    .option('-P, --proxy-port <number>', 'proxy port, default is "1086"')
     .option('-A, --additional-options <string>', 'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions')
     .parse(process.argv);
 
@@ -83,9 +72,10 @@ let ARGS_OUTPUT_NAME = (program as any).outputName;
 let ARGS_FORMAT = (program as any).format;
 const ARGS_LIST_FORMATS = (program as any).listFormats !== undefined;
 let ARGS_VERTICAL_RESOLUTION = (program as any).verticalResolution;
-const ARGS_DISABLE_SOCKS5_PROXY = (program as any).disableSocks5Proxy !== undefined;
-const ARGS_SOCKS5_HOST = (program as any).socks5Host === undefined ? DEFAULT_SOCKS5_HOST : (program as any).socks5Host;
-const ARGS_SOCKS5_PORT = (program as any).socks5Port === undefined ? DEFAULT_SOCKS5_PORT : (program as any).socks5Port;
+const ARGS_DISABLE_PROXY = (program as any).disableProxy !== undefined;
+const ARGS_PROXY_PROTOCOL = (program as any).proxyProtocol === undefined ? DEFAULT_PROXY_PROTOCOL : (program as any).proxyProtocol;
+const ARGS_PROXY_HOST = (program as any).proxyHost === undefined ? DEFAULT_PROXY_HOST : (program as any).proxyHost;
+const ARGS_PROXY_PORT = (program as any).proxyPort === undefined ? DEFAULT_PROXY_PORT : (program as any).proxyPort;
 const ARGS_ADDITIONAL_OPTIONS = (program as any).additionalOptions === undefined ? '' : (program as any).additionalOptions;
 
 class YoutubeDLQuick {
@@ -151,7 +141,7 @@ class YoutubeDLQuick {
 
         // validate ARGS_FORMAT
         if (ARGS_FORMAT === undefined) {
-            ARGS_FORMAT = DEFAULT_FORMAT[ARGS_VERTICAL_RESOLUTION]['60'];
+            ARGS_FORMAT = DEFAULT_FORMAT[ARGS_VERTICAL_RESOLUTION];
         }
 
     }
@@ -160,68 +150,78 @@ class YoutubeDLQuick {
 
         // prepare command base
         let cmdBase = 'youtube-dl';
-        if (!ARGS_DISABLE_SOCKS5_PROXY) {
-            cmdBase += ` --proxy socks5://${ARGS_SOCKS5_HOST}:${ARGS_SOCKS5_PORT}`;
+        if (!ARGS_DISABLE_PROXY) {
+            cmdBase += ` --proxy ${ARGS_PROXY_PROTOCOL}://${ARGS_PROXY_HOST}:${ARGS_PROXY_PORT}`; // proxy
         }
-        cmdBase += ` -o "${LibPath.join(ARGS_OUTPUT_DIR, ARGS_OUTPUT_NAME)}"`;
+        cmdBase += ` -o "${LibPath.join(ARGS_OUTPUT_DIR, ARGS_OUTPUT_NAME)}"`; // output template
+        cmdBase += ` -f "${ARGS_FORMAT}"`; // format
+        cmdBase += ' --ignore-errors'; // continue when error encountered
+        if (ARGS_ADDITIONAL_OPTIONS) {
+            cmdBase += ` ${ARGS_ADDITIONAL_OPTIONS}`; // additional options
+        }
 
         // list formats handled first
         if (ARGS_LIST_FORMATS && isUrl(ARGS_SOURCE)) {
-            await this._processListFormats(cmdBase);
+            await this._processListFormats(cmdBase, ARGS_SOURCE);
         }
 
-        await this._executeWithErrorHandling(cmdBase, ARGS_SOURCE);
+        // process download
+        if (IS_SOURCE_PLAYLIST) {
+            // playlist
+            await this._processPlaylistDownload(cmdBase);
+        } else if (IS_SOURCE_LISTFILE) {
+            // list file
+            await this._processListFileDownload(cmdBase);
+        } else {
+            // single url download
+            await this._executeWithErrorHandling(cmdBase, ARGS_SOURCE);
+        }
+
     }
 
-    private async _processListFormats(cmdBase: string) {
-        await this._execute(`${cmdBase} -F`);
+    private async _processListFormats(cmdBase: string, source: string) {
+        await this._executeWithErrorHandling(`${cmdBase} -F`, source);
+        process.exit(0); // exit after format list
+    }
+
+    private async _processPlaylistDownload(cmdBase: string) {
+        await this._executeWithErrorHandling(`${cmdBase} --yes-playlist`, ARGS_SOURCE);
+    }
+
+    private async _processListFileDownload(cmdBase: string) {
+        await this._executeWithErrorHandling(`${cmdBase} --batch-file`, ARGS_SOURCE);
     }
 
     private async _executeWithErrorHandling(command: string, source: string) {
 
-        const finalCommand = `${command} -f "${ARGS_FORMAT}" ${source}`;
+        const finalCommand = `${command} "${source}"`;
 
         try {
             await this._execute(finalCommand);
         } catch (e) {
-            if (e === ERROR_UNAVAILABLE_FORMAT) {
-                // retry with downgrade format
-                try {
-                    const retryCommand = `${command} -f "${DEFAULT_FORMAT[ARGS_VERTICAL_RESOLUTION]['30']}" ${source}`;
-                    console.log(`retry with command: ${retryCommand}`);
-                    await this._execute(retryCommand);
-                } catch (e) {
-                    // retry failed
-                    console.log(e);
-                }
-            } else {
-                // unexpected error
-                console.log(e);
-            }
+            // unexpected error
+            console.log(e);
         }
 
     }
 
     private _execute(command: string): Promise<void> {
+
         console.log(`execute command: ${command}`);
 
         return new Promise((resolve, reject) => {
-            const child = shell.exec(command, (code, stdout, stderr) => {
+            shell.exec(command, (code, stdout, stderr) => {
 
                 // unexpected error
-                if (code !== 0 && stderr.trim() !== ERROR_UNAVAILABLE_FORMAT) {
+                if (code !== 0) {
                     return reject(`Error in "${command}"\ncode: ${code}, stderr: ${stderr}`);
-                }
-
-                // unavailable format error
-                if (code !== 0 && stderr.trim() === ERROR_UNAVAILABLE_FORMAT) {
-                    return reject(ERROR_UNAVAILABLE_FORMAT);
                 }
 
                 return resolve();
 
             });
         });
+
     }
 
 }
