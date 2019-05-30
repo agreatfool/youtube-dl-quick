@@ -52,13 +52,13 @@ program.version(pkg.version)
     .option(
         '-f, --format <string>',
         'download format, default is: \n' +
-        '\t-V 720: "298+140" if 60fps available, "136+140" if not\n' +
-        '\t-V 1080: "299+140" if 60fps available, "137+140" if not\n' +
-        '\t-V 1440: "308+140" if 60fps available, "271+140" if not\n' +
-        '\t-V 2160: "315+140" if 60fps available, "313+140" if not'
+        '\t-E 720: "298+140" if 60fps available, "136+140" if not\n' +
+        '\t-E 1080: "299+140" if 60fps available, "137+140" if not\n' +
+        '\t-E 1440: "308+140" if 60fps available, "271+140" if not\n' +
+        '\t-E 2160: "315+140" if 60fps available, "313+140" if not'
     )
     .option('-F, --list-formats', 'same as youtube-dl -F, list all available formats of video')
-    .option('-V, --vertical-resolution <number>', `vertical resolution, default is "720", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`)
+    .option('-E, --vertical-resolution <number>', `vertical resolution, default is "720", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`)
     .option('-D, --disable-proxy', 'disable proxy, by default it is enabled')
     .option('-R, --proxy-protocol <string>', 'proxy protocol, default is "socks5"')
     .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
