@@ -1,6 +1,6 @@
 {
   "name": "youtube-dl-quick",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "youtube-dl-quick ================",
   "main": "build/index.js",
   "scripts": {
