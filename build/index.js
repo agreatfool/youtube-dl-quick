@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
@@ -20,15 +21,20 @@ const DEFAULT_OUTPUT_DIR = '~/Downloads/youtube';
 const DEFAULT_OUTPUT_NAME_SINGLE = '[%(uploader)s] %(title)s.%(ext)s';
 const DEFAULT_OUTPUT_NAME_LIST = `%(playlist)s/${DEFAULT_OUTPUT_NAME_SINGLE}`;
 const DEFAULT_VERTICAL_RESOLUTION = '720';
+const DEFAULT_EXT = 'MP4';
 const DEFAULT_PROXY_PROTOCOL = 'socks5';
 const DEFAULT_PROXY_HOST = '127.0.0.1';
 const DEFAULT_PROXY_PORT = '1086';
 /**
  * 140          m4a        audio only DASH audio  130k , m4a_dash container, mp4a.40.2@128k
  * 136          mp4        1280x720   720p 2338k , avc1.4d401f, 30fps, video only
+ * 247          webm       1280x720   720p 1530k , vp9, 30fps, video only
  * 298          mp4        1280x720   720p60 3496k , avc1.4d4020, 60fps, video only
+ * 302          webm       1280x720   720p60 2665k , vp9, 60fps, video only
  * 137          mp4        1920x1080  1080p 4366k , avc1.640028, 30fps, video only
+ * 248          webm       1920x1080  1080p 2684k , vp9, 30fps, video only
  * 299          mp4        1920x1080  1080p60 5811k , avc1.64002a, 60fps, video only
+ * 303          webm       1920x1080  1080p60 4435k , vp9, 60fps, video only
  * 271          webm       2560x1440  1440p 8995k , vp9, 30fps, video only
  * 308          webm       2560x1440  1440p60 13375k , vp9, 60fps, video only
  * 313          webm       3840x2160  2160p 18369k , vp9, 30fps, video only
@@ -36,10 +42,18 @@ const DEFAULT_PROXY_PORT = '1086';
  */
 const VALID_VERTICAL_RESOLUTION = ['720', '1080', '1440', '2160'];
 const DEFAULT_FORMAT = {
-    '720': '298+140/136+140',
-    '1080': '299+140/137+140',
-    '1440': '308+140/271+140',
-    '2160': '315+140/313+140',
+    MP4: {
+        '720': '298+140/136+140',
+        '1080': '299+140/137+140',
+        '1440': '308+140/271+140',
+        '2160': '315+140/313+140',
+    },
+    MKV: {
+        '720': '302+140/247+140',
+        '1080': '303+140/248+140',
+        '1440': '308+140/271+140',
+        '2160': '315+140/313+140',
+    }
 };
 let IS_SOURCE_LISTFILE = false;
 let IS_SOURCE_PLAYLIST = false;
@@ -50,11 +64,18 @@ program.version(pkg.version)
     .option('-n, --output-name <string>', 'output name template, default is:\n' +
     '\tsingle video: "[%(uploader)s] %(title)s.%(ext)s"\n' +
     '\tvideo in list: "%(playlist)s/[%(uploader)s] %(title)s.%(ext)s"')
+    .option('-e, --ext <string>', 'download file ext, default is: MP4, could be: \n' +
+    '\tMP4: mp4 avc1 video + m4a mp4a audio -> *.mp4, bigger file, better compatibility\n' +
+    '\tMKV: webm vp9 video + m4a mp4a audio -> *.mkv, smaller file, worse compatibility')
     .option('-f, --format <string>', 'download format, default is: \n' +
-    '\t-E 720: "298+140" if 60fps available, "136+140" if not\n' +
-    '\t-E 1080: "299+140" if 60fps available, "137+140" if not\n' +
-    '\t-E 1440: "308+140" if 60fps available, "271+140" if not\n' +
-    '\t-E 2160: "315+140" if 60fps available, "313+140" if not')
+    '\tMP4:\n' +
+    '\t\t-E 720: "298+140" if 60fps available, "136+140" if not\n' +
+    '\t\t-E 1080: "299+140" if 60fps available, "137+140" if not\n' +
+    '\tMKV:\n' +
+    '\t\t-E 720: "302+140" if 60fps available, "247+140" if not\n' +
+    '\t\t-E 1080: "303+140" if 60fps available, "248+140" if not\n' +
+    '\t\t-E 1440: "308+140" if 60fps available, "271+140" if not\n' +
+    '\t\t-E 2160: "315+140" if 60fps available, "313+140" if not')
     .option('-F, --list-formats', 'same as youtube-dl -F, list all available formats of video')
     .option('-E, --vertical-resolution <number>', `vertical resolution, default is "720", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`)
     .option('-D, --disable-proxy', 'disable proxy, by default it is enabled')
@@ -66,6 +87,7 @@ program.version(pkg.version)
 let ARGS_SOURCE = program.source;
 let ARGS_OUTPUT_DIR = program.outputDir;
 let ARGS_OUTPUT_NAME = program.outputName;
+let ARGS_EXT = program.ext === undefined ? DEFAULT_EXT : program.ext;
 let ARGS_FORMAT = program.format;
 const ARGS_LIST_FORMATS = program.listFormats !== undefined;
 let ARGS_VERTICAL_RESOLUTION = program.verticalResolution;
@@ -121,6 +143,11 @@ class YoutubeDLQuick {
             else if (ARGS_OUTPUT_NAME === undefined) {
                 ARGS_OUTPUT_NAME = DEFAULT_OUTPUT_NAME_SINGLE;
             }
+            // validate ARGS_EXT
+            if (ARGS_EXT !== 'MP4' && ARGS_EXT !== 'MKV') {
+                console.log('Option "ext" is restrict to one of MP4 | MKV!');
+                process.exit(1);
+            }
             // validate ARGS_VERTICAL_RESOLUTION
             if (ARGS_VERTICAL_RESOLUTION === undefined) {
                 ARGS_VERTICAL_RESOLUTION = DEFAULT_VERTICAL_RESOLUTION;
@@ -132,7 +159,7 @@ class YoutubeDLQuick {
             }
             // validate ARGS_FORMAT
             if (ARGS_FORMAT === undefined) {
-                ARGS_FORMAT = DEFAULT_FORMAT[ARGS_VERTICAL_RESOLUTION];
+                ARGS_FORMAT = DEFAULT_FORMAT[ARGS_EXT][ARGS_VERTICAL_RESOLUTION];
             }
         });
     }

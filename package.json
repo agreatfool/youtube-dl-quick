@@ -1,7 +1,7 @@
 {
   "name": "youtube-dl-quick",
   "version": "0.0.3",
-  "description": "youtube-dl-quick ================",
+  "description": "youtube-dl-quick",
   "main": "build/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -20,12 +20,12 @@
   },
   "homepage": "https://github.com/agreatfool/youtube-dl-quick#readme",
   "dependencies": {
-    "commander": "2.19.0",
+    "commander": "5.1.0",
     "is-url": "1.2.4",
     "mz": "2.7.0",
     "shelljs": "0.8.3"
   },
   "devDependencies": {
-    "@types/node": "10.0.8"
+    "@types/node": "14.0.14"
   }
 }
