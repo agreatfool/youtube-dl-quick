@@ -27,9 +27,9 @@ Options:
   -n, --output-name <string>          output name template, default is:
         single video: "[%(uploader)s] %(title)s.%(ext)s"
         video in list: "%(playlist)s/[%(uploader)s] %(title)s.%(ext)s"
-  -e, --ext <string>                  download file ext, default is: MP4, could be: 
-        MP4: mp4 avc1 video + m4a mp4a audio -> *.mp4, bigger file, better compatibility
-        MKV: webm vp9 video + m4a mp4a audio -> *.mkv, smaller file, worse compatibility
+  -e, --ext <string>                  download file ext, default is: MKV, could be: 
+        MP4: mp4 avc1 video + m4a mp4a audio -> *.mp4, bigger file, normal quality, better compatibility
+        MKV: webm vp9 video + m4a mp4a audio -> *.mkv, much smaller file, good quality, worse compatibility
   -f, --format <string>               download format, default is: 
         MP4:
                 -E 720: "298+140" if 60fps available, "136+140" if not
@@ -40,18 +40,21 @@ Options:
                 -E 1440: "308+140" if 60fps available, "271+140" if not
                 -E 2160: "315+140" if 60fps available, "313+140" if not
   -F, --list-formats                  same as youtube-dl -F, list all available formats of video
-  -E, --vertical-resolution <number>  vertical resolution, default is "720", available options: ["720","1080","1440","2160"]
+  -E, --vertical-resolution <number>  vertical resolution, default is "BEST", available options: ["720","1080","1440","2160","BEST"]
   -D, --disable-proxy                 disable proxy, by default it is enabled
   -R, --proxy-protocol <string>       proxy protocol, default is "socks5"
   -H, --proxy-host <string>           proxy host, default is "127.0.0.1"
-  -P, --proxy-port <number>           proxy port, default is "1086"
+  -P, --proxy-port <number>           proxy port, default is "6153"
   -A, --additional-options <string>   additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions
   -h, --help                          display help for command
 ```
 
 ```
 Video formats:
- 140          m4a        audio only DASH audio  130k , m4a_dash container, mp4a.40.2@128k
+ 249          webm       audio only tiny   57k , webm_dash container, opus @ 57k (48000Hz), 621.30KiB
+ 250          webm       audio only tiny   76k , webm_dash container, opus @ 76k (48000Hz), 823.10KiB
+ 140          m4a        audio only tiny  129k , m4a_dash container, mp4a.40.2@129k (44100Hz), 1.37MiB
+ 251          webm       audio only tiny  150k , webm_dash container, opus @150k (48000Hz), 1.58MiB
  136          mp4        1280x720   720p 2338k , avc1.4d401f, 30fps, video only
  247          webm       1280x720   720p 1530k , vp9, 30fps, video only
  298          mp4        1280x720   720p60 3496k , avc1.4d4020, 60fps, video only

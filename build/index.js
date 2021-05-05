@@ -20,13 +20,16 @@ const pkg = require('../package.json');
 const DEFAULT_OUTPUT_DIR = '~/Downloads/youtube';
 const DEFAULT_OUTPUT_NAME_SINGLE = '[%(uploader)s] %(title)s.%(ext)s';
 const DEFAULT_OUTPUT_NAME_LIST = `%(playlist)s/${DEFAULT_OUTPUT_NAME_SINGLE}`;
-const DEFAULT_VERTICAL_RESOLUTION = '1080';
+const DEFAULT_VERTICAL_RESOLUTION = 'BEST';
 const DEFAULT_EXT = 'MKV';
 const DEFAULT_PROXY_PROTOCOL = 'socks5';
 const DEFAULT_PROXY_HOST = '127.0.0.1';
-const DEFAULT_PROXY_PORT = '1086';
+const DEFAULT_PROXY_PORT = '6153';
 /**
- * 140          m4a        audio only DASH audio  130k , m4a_dash container, mp4a.40.2@128k
+ * 249          webm       audio only tiny   57k , webm_dash container, opus @ 57k (48000Hz), 621.30KiB
+ * 250          webm       audio only tiny   76k , webm_dash container, opus @ 76k (48000Hz), 823.10KiB
+ * 140          m4a        audio only tiny  129k , m4a_dash container, mp4a.40.2@129k (44100Hz), 1.37MiB
+ * 251          webm       audio only tiny  150k , webm_dash container, opus @150k (48000Hz), 1.58MiB
  * 136          mp4        1280x720   720p 2338k , avc1.4d401f, 30fps, video only
  * 247          webm       1280x720   720p 1530k , vp9, 30fps, video only
  * 298          mp4        1280x720   720p60 3496k , avc1.4d4020, 60fps, video only
@@ -40,19 +43,21 @@ const DEFAULT_PROXY_PORT = '1086';
  * 313          webm       3840x2160  2160p 18369k , vp9, 30fps, video only
  * 315          webm       3840x2160  2160p60 26725k , vp9, 60fps, video only
  */
-const VALID_VERTICAL_RESOLUTION = ['720', '1080', '1440', '2160'];
+const VALID_VERTICAL_RESOLUTION = ['720', '1080', '1440', '2160', 'BEST'];
 const DEFAULT_FORMAT = {
     MP4: {
         '720': '298+140/136+140',
         '1080': '299+140/137+140',
         '1440': '308+140/271+140',
         '2160': '315+140/313+140',
+        'BEST': '315+140/308+140/299+140/298+140',
     },
     MKV: {
         '720': '302+140/247+140',
         '1080': '303+140/248+140',
         '1440': '308+140/271+140',
         '2160': '315+140/313+140',
+        'BEST': '315+140/308+140/303+140/302+140',
     }
 };
 let IS_SOURCE_LISTFILE = false;
@@ -64,9 +69,9 @@ program.version(pkg.version)
     .option('-n, --output-name <string>', 'output name template, default is:\n' +
     '\tsingle video: "[%(uploader)s] %(title)s.%(ext)s"\n' +
     '\tvideo in list: "%(playlist)s/[%(uploader)s] %(title)s.%(ext)s"')
-    .option('-e, --ext <string>', 'download file ext, default is: MP4, could be: \n' +
-    '\tMP4: mp4 avc1 video + m4a mp4a audio -> *.mp4, bigger file, better compatibility\n' +
-    '\tMKV: webm vp9 video + m4a mp4a audio -> *.mkv, smaller file, worse compatibility')
+    .option('-e, --ext <string>', 'download file ext, default is: MKV, could be: \n' +
+    '\tMP4: mp4 avc1 video + m4a mp4a audio -> *.mp4, bigger file, normal quality, better compatibility\n' +
+    '\tMKV: webm vp9 video + m4a mp4a audio -> *.mkv, much smaller file, good quality, worse compatibility')
     .option('-f, --format <string>', 'download format, default is: \n' +
     '\tMP4:\n' +
     '\t\t-E 720: "298+140" if 60fps available, "136+140" if not\n' +
@@ -77,11 +82,11 @@ program.version(pkg.version)
     '\t\t-E 1440: "308+140" if 60fps available, "271+140" if not\n' +
     '\t\t-E 2160: "315+140" if 60fps available, "313+140" if not')
     .option('-F, --list-formats', 'same as youtube-dl -F, list all available formats of video')
-    .option('-E, --vertical-resolution <number>', `vertical resolution, default is "720", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`)
+    .option('-E, --vertical-resolution <number>', `vertical resolution, default is "BEST", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`)
     .option('-D, --disable-proxy', 'disable proxy, by default it is enabled')
     .option('-R, --proxy-protocol <string>', 'proxy protocol, default is "socks5"')
     .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
-    .option('-P, --proxy-port <number>', 'proxy port, default is "1086"')
+    .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
     .option('-A, --additional-options <string>', 'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions')
     .parse(process.argv);
 let ARGS_SOURCE = program.source;
