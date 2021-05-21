@@ -91,6 +91,7 @@ program.version(pkg.version)
   .option('-R, --proxy-protocol <string>', 'proxy protocol, default is "socks5"')
   .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
   .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
+  .option('-C, --cookies <string>', 'cookies.txt file dir, same as youtube-dl --cookies, default is ~/Downloads/youtube/cookies.txt')
   .option('-A, --additional-options <string>', 'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions')
   .parse(process.argv);
 
@@ -105,6 +106,7 @@ const ARGS_DISABLE_PROXY = (program as any).disableProxy !== undefined;
 const ARGS_PROXY_PROTOCOL = (program as any).proxyProtocol === undefined ? DEFAULT_PROXY_PROTOCOL : (program as any).proxyProtocol;
 const ARGS_PROXY_HOST = (program as any).proxyHost === undefined ? DEFAULT_PROXY_HOST : (program as any).proxyHost;
 const ARGS_PROXY_PORT = (program as any).proxyPort === undefined ? DEFAULT_PROXY_PORT : (program as any).proxyPort;
+let ARGS_COOKIES_DIR = (program as any).cookies;
 const ARGS_ADDITIONAL_OPTIONS = (program as any).additionalOptions === undefined ? '' : (program as any).additionalOptions;
 
 class YoutubeDLQuick {
@@ -179,6 +181,14 @@ class YoutubeDLQuick {
       ARGS_FORMAT = DEFAULT_FORMAT[ARGS_EXT][ARGS_VERTICAL_RESOLUTION];
     }
 
+    // validate ARGS_COOKIES_DIR
+    if (ARGS_COOKIES_DIR === undefined && LibOs.platform() === 'darwin') {
+      ARGS_COOKIES_DIR = LibPath.join(DEFAULT_OUTPUT_DIR, 'cookies.txt');
+    } else if (ARGS_COOKIES_DIR === undefined) {
+      console.log('Option "cookies" required, please provide -C option!');
+      process.exit(1);
+    }
+
   }
 
   private async _process() {
@@ -191,6 +201,7 @@ class YoutubeDLQuick {
     cmdBase += ` -o "${LibPath.join(ARGS_OUTPUT_DIR, ARGS_OUTPUT_NAME)}"`; // output template
     cmdBase += ` -f "${ARGS_FORMAT}"`; // format
     cmdBase += ' --ignore-errors'; // continue when error encountered
+    cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
     if (ARGS_ADDITIONAL_OPTIONS) {
       cmdBase += ` ${ARGS_ADDITIONAL_OPTIONS}`; // additional options
     }

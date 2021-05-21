@@ -87,6 +87,7 @@ program.version(pkg.version)
     .option('-R, --proxy-protocol <string>', 'proxy protocol, default is "socks5"')
     .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
     .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
+    .option('-C, --cookies <string>', 'cookies.txt file dir, same as youtube-dl --cookies, default is ~/Downloads/youtube/cookies.txt')
     .option('-A, --additional-options <string>', 'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions')
     .parse(process.argv);
 let ARGS_SOURCE = program.source;
@@ -100,6 +101,7 @@ const ARGS_DISABLE_PROXY = program.disableProxy !== undefined;
 const ARGS_PROXY_PROTOCOL = program.proxyProtocol === undefined ? DEFAULT_PROXY_PROTOCOL : program.proxyProtocol;
 const ARGS_PROXY_HOST = program.proxyHost === undefined ? DEFAULT_PROXY_HOST : program.proxyHost;
 const ARGS_PROXY_PORT = program.proxyPort === undefined ? DEFAULT_PROXY_PORT : program.proxyPort;
+let ARGS_COOKIES_DIR = program.cookies;
 const ARGS_ADDITIONAL_OPTIONS = program.additionalOptions === undefined ? '' : program.additionalOptions;
 class YoutubeDLQuick {
     run() {
@@ -166,6 +168,14 @@ class YoutubeDLQuick {
             if (ARGS_FORMAT === undefined) {
                 ARGS_FORMAT = DEFAULT_FORMAT[ARGS_EXT][ARGS_VERTICAL_RESOLUTION];
             }
+            // validate ARGS_COOKIES_DIR
+            if (ARGS_COOKIES_DIR === undefined && LibOs.platform() === 'darwin') {
+                ARGS_COOKIES_DIR = LibPath.join(DEFAULT_OUTPUT_DIR, 'cookies.txt');
+            }
+            else if (ARGS_COOKIES_DIR === undefined) {
+                console.log('Option "cookies" required, please provide -C option!');
+                process.exit(1);
+            }
         });
     }
     _process() {
@@ -178,6 +188,7 @@ class YoutubeDLQuick {
             cmdBase += ` -o "${LibPath.join(ARGS_OUTPUT_DIR, ARGS_OUTPUT_NAME)}"`; // output template
             cmdBase += ` -f "${ARGS_FORMAT}"`; // format
             cmdBase += ' --ignore-errors'; // continue when error encountered
+            cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
             if (ARGS_ADDITIONAL_OPTIONS) {
                 cmdBase += ` ${ARGS_ADDITIONAL_OPTIONS}`; // additional options
             }
