@@ -60,7 +60,7 @@ let IS_SOURCE_PLAYLIST = false;
 program.version(pkg.version)
   .description('youtube-dl-quick: quick usage wrapper for command youtube-dl')
   .option('-s, --source <string>', 'download target, could be url or a list file')
-  .option('-o, --output_dir <dir>', 'output directory, default is "~/Downloads/youtube" if OSX')
+  .option('-o, --output-dir <dir>', 'output directory, default is "~/Downloads/youtube" if OSX')
   .option(
     '-n, --output-name <string>',
     'output name template, default is:\n' +
