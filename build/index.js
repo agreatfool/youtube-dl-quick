@@ -45,25 +45,28 @@ const DEFAULT_PROXY_PORT = '6153';
  */
 const VALID_VERTICAL_RESOLUTION = ['720', '1080', '1440', '2160', 'BEST'];
 const DEFAULT_FORMAT = {
+    // 60fps first
     MP4: {
         '720': '298+140/136+140',
         '1080': '299+140/137+140',
         '1440': '308+140/271+140',
         '2160': '315+140/313+140',
-        'BEST': '315+140/308+140/299+140/298+140/313+140/271+140/137+140/136+140',
+        BEST: '315+140/308+140/299+140/298+140/313+140/271+140/137+140/136+140'
     },
     MKV: {
         '720': '302+140/247+140',
         '1080': '303+140/248+140',
         '1440': '308+140/271+140',
         '2160': '315+140/313+140',
-        'BEST': '315+140/308+140/303+140/302+140/313+140/271+140/248+140/247+140',
+        BEST: '315+140/308+140/303+140/302+140/313+140/271+140/248+140/247+140'
     }
 };
+const EXECUTABLE = ['yt-dlp', 'youtube-dl'];
 let IS_SOURCE_LISTFILE = false;
 let IS_SOURCE_PLAYLIST = false;
-program.version(pkg.version)
-    .description('youtube-dl-quick: quick usage wrapper for command youtube-dl')
+program
+    .version(pkg.version)
+    .description('youtube-dl-quick: quick usage wrapper for command yt-dlp | youtube-dl')
     .option('-s, --source <string>', 'download target, could be url or a list file')
     .option('-o, --output-dir <dir>', 'output directory, default is "~/Downloads/youtube" if OSX')
     .option('-n, --output-name <string>', 'output name template, default is:\n' +
@@ -89,11 +92,12 @@ program.version(pkg.version)
     .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
     .option('-C, --cookies <string>', 'cookies.txt file dir, same as youtube-dl --cookies, default is ~/Downloads/youtube/cookies.txt')
     .option('-A, --additional-options <string>', 'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions')
+    .option('-X, --executable <string>', 'which app used to handle the download task, default is "yt-dlp", optional is "youtube-dl"')
     .parse(process.argv);
-let ARGS_SOURCE = program.source;
+const ARGS_SOURCE = program.source;
 let ARGS_OUTPUT_DIR = program.outputDir;
 let ARGS_OUTPUT_NAME = program.outputName;
-let ARGS_EXT = program.ext === undefined ? DEFAULT_EXT : program.ext;
+const ARGS_EXT = program.ext === undefined ? DEFAULT_EXT : program.ext;
 let ARGS_FORMAT = program.format;
 const ARGS_LIST_FORMATS = program.listFormats !== undefined;
 let ARGS_VERTICAL_RESOLUTION = program.verticalResolution;
@@ -103,6 +107,7 @@ const ARGS_PROXY_HOST = program.proxyHost === undefined ? DEFAULT_PROXY_HOST : p
 const ARGS_PROXY_PORT = program.proxyPort === undefined ? DEFAULT_PROXY_PORT : program.proxyPort;
 let ARGS_COOKIES_DIR = program.cookies;
 const ARGS_ADDITIONAL_OPTIONS = program.additionalOptions === undefined ? '' : program.additionalOptions;
+const ARGS_EXECUTABLE = program.executable === undefined ? EXECUTABLE[0] : program.executable;
 class YoutubeDLQuick {
     run() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -114,10 +119,14 @@ class YoutubeDLQuick {
     _validate() {
         return __awaiter(this, void 0, void 0, function* () {
             console.log('Process validating ...');
-            // validate youtube-dl installed or not
-            if (!shell.which('youtube-dl')) {
-                console.log('Command "youtube-dl" not found, you need to install it first.\n' +
-                    'e.g OSX: brew install youtube-dl');
+            // validate executable installed or not
+            if (EXECUTABLE.indexOf(ARGS_EXECUTABLE) === -1) {
+                console.log(`Option "executable" value invalid: ${ARGS_EXECUTABLE}, valid options: ${JSON.stringify(EXECUTABLE)}`);
+                process.exit(1);
+            }
+            if (!shell.which(ARGS_EXECUTABLE)) {
+                console.log(`Command "${ARGS_EXECUTABLE}" not found, you need to install it first.\n` +
+                    'e.g OSX: brew install youtube-dl | brew install yt-dlp/taps/yt-dlp');
                 process.exit(1);
             }
             // validate ARGS_URL
@@ -129,9 +138,8 @@ class YoutubeDLQuick {
                 IS_SOURCE_PLAYLIST = true;
                 console.log('Download source is a playlist');
             }
-            if (!isUrl(ARGS_SOURCE)
-                && (yield LibFs.exists(ARGS_SOURCE))
-                && (yield LibFs.stat(ARGS_SOURCE)).isFile()) { // means a file
+            if (!isUrl(ARGS_SOURCE) && (yield LibFs.exists(ARGS_SOURCE)) && (yield LibFs.stat(ARGS_SOURCE)).isFile()) {
+                // means a file
                 IS_SOURCE_LISTFILE = true;
                 console.log('Download source is a list file');
             }
@@ -159,8 +167,7 @@ class YoutubeDLQuick {
             if (ARGS_VERTICAL_RESOLUTION === undefined) {
                 ARGS_VERTICAL_RESOLUTION = DEFAULT_VERTICAL_RESOLUTION;
             }
-            else if (ARGS_VERTICAL_RESOLUTION
-                && VALID_VERTICAL_RESOLUTION.indexOf(ARGS_VERTICAL_RESOLUTION) === -1) {
+            else if (ARGS_VERTICAL_RESOLUTION && VALID_VERTICAL_RESOLUTION.indexOf(ARGS_VERTICAL_RESOLUTION) === -1) {
                 console.log(`Option "vertical resolution" is restrict to one of ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}!`);
                 process.exit(1);
             }
@@ -181,7 +188,7 @@ class YoutubeDLQuick {
     _process() {
         return __awaiter(this, void 0, void 0, function* () {
             // prepare command base
-            let cmdBase = 'youtube-dl';
+            let cmdBase = ARGS_EXECUTABLE;
             if (!ARGS_DISABLE_PROXY) {
                 cmdBase += ` --proxy ${ARGS_PROXY_PROTOCOL}://${ARGS_PROXY_HOST}:${ARGS_PROXY_PORT}`; // proxy
             }
@@ -252,7 +259,10 @@ class YoutubeDLQuick {
         });
     }
 }
-new YoutubeDLQuick().run().then(_ => _).catch(_ => console.log(_));
+new YoutubeDLQuick()
+    .run()
+    .then((_) => _)
+    .catch((_) => console.log(_));
 process.on('uncaughtException', (error) => {
     console.error(`Process on uncaughtException error = ${error.stack}`);
 });

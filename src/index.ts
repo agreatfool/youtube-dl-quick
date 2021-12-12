@@ -37,68 +37,78 @@ const DEFAULT_PROXY_PORT = '6153';
  * 315          webm       3840x2160  2160p60 26725k , vp9, 60fps, video only
  */
 const VALID_VERTICAL_RESOLUTION = ['720', '1080', '1440', '2160', 'BEST'];
-const DEFAULT_FORMAT = { // 60fps first
+const DEFAULT_FORMAT = {
+  // 60fps first
   MP4: {
     '720': '298+140/136+140',
     '1080': '299+140/137+140',
     '1440': '308+140/271+140',
     '2160': '315+140/313+140',
-    'BEST': '315+140/308+140/299+140/298+140/313+140/271+140/137+140/136+140',
+    BEST: '315+140/308+140/299+140/298+140/313+140/271+140/137+140/136+140'
   },
   MKV: {
     '720': '302+140/247+140',
     '1080': '303+140/248+140',
     '1440': '308+140/271+140',
     '2160': '315+140/313+140',
-    'BEST': '315+140/308+140/303+140/302+140/313+140/271+140/248+140/247+140',
+    BEST: '315+140/308+140/303+140/302+140/313+140/271+140/248+140/247+140'
   }
 };
+const EXECUTABLE = ['yt-dlp', 'youtube-dl'];
 
 let IS_SOURCE_LISTFILE = false;
 let IS_SOURCE_PLAYLIST = false;
 
-program.version(pkg.version)
-  .description('youtube-dl-quick: quick usage wrapper for command youtube-dl')
+program
+  .version(pkg.version)
+  .description('youtube-dl-quick: quick usage wrapper for command yt-dlp | youtube-dl')
   .option('-s, --source <string>', 'download target, could be url or a list file')
   .option('-o, --output-dir <dir>', 'output directory, default is "~/Downloads/youtube" if OSX')
   .option(
     '-n, --output-name <string>',
     'output name template, default is:\n' +
-    '\tsingle video: "[%(uploader)s] %(title)s.%(ext)s"\n' +
-    '\tvideo in list: "%(playlist)s/[%(uploader)s] %(title)s.%(ext)s"'
+      '\tsingle video: "[%(uploader)s] %(title)s.%(ext)s"\n' +
+      '\tvideo in list: "%(playlist)s/[%(uploader)s] %(title)s.%(ext)s"'
   )
   .option(
     '-e, --ext <string>',
     'download file ext, default is: MKV, could be: \n' +
-    '\tMP4: mp4 avc1 video + m4a mp4a audio -> *.mp4, bigger file, normal quality, better compatibility\n' +
-    '\tMKV: webm vp9 video + m4a mp4a audio -> *.mkv, much smaller file, good quality, worse compatibility'
+      '\tMP4: mp4 avc1 video + m4a mp4a audio -> *.mp4, bigger file, normal quality, better compatibility\n' +
+      '\tMKV: webm vp9 video + m4a mp4a audio -> *.mkv, much smaller file, good quality, worse compatibility'
   )
   .option(
     '-f, --format <string>',
     'download format, default is: \n' +
-    '\tMP4:\n' +
-    '\t\t-E 720: "298+140" if 60fps available, "136+140" if not\n' +
-    '\t\t-E 1080: "299+140" if 60fps available, "137+140" if not\n' +
-    '\tMKV:\n' +
-    '\t\t-E 720: "302+140" if 60fps available, "247+140" if not\n' +
-    '\t\t-E 1080: "303+140" if 60fps available, "248+140" if not\n' +
-    '\t\t-E 1440: "308+140" if 60fps available, "271+140" if not\n' +
-    '\t\t-E 2160: "315+140" if 60fps available, "313+140" if not'
+      '\tMP4:\n' +
+      '\t\t-E 720: "298+140" if 60fps available, "136+140" if not\n' +
+      '\t\t-E 1080: "299+140" if 60fps available, "137+140" if not\n' +
+      '\tMKV:\n' +
+      '\t\t-E 720: "302+140" if 60fps available, "247+140" if not\n' +
+      '\t\t-E 1080: "303+140" if 60fps available, "248+140" if not\n' +
+      '\t\t-E 1440: "308+140" if 60fps available, "271+140" if not\n' +
+      '\t\t-E 2160: "315+140" if 60fps available, "313+140" if not'
   )
   .option('-F, --list-formats', 'same as youtube-dl -F, list all available formats of video')
-  .option('-E, --vertical-resolution <number>', `vertical resolution, default is "BEST", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`)
+  .option(
+    '-E, --vertical-resolution <number>',
+    `vertical resolution, default is "BEST", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`
+  )
   .option('-D, --disable-proxy', 'disable proxy, by default it is enabled')
   .option('-R, --proxy-protocol <string>', 'proxy protocol, default is "socks5"')
   .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
   .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
   .option('-C, --cookies <string>', 'cookies.txt file dir, same as youtube-dl --cookies, default is ~/Downloads/youtube/cookies.txt')
-  .option('-A, --additional-options <string>', 'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions')
+  .option(
+    '-A, --additional-options <string>',
+    'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions'
+  )
+  .option('-X, --executable <string>', 'which app used to handle the download task, default is "yt-dlp", optional is "youtube-dl"')
   .parse(process.argv);
 
-let ARGS_SOURCE = (program as any).source;
+const ARGS_SOURCE = (program as any).source;
 let ARGS_OUTPUT_DIR = (program as any).outputDir;
 let ARGS_OUTPUT_NAME = (program as any).outputName;
-let ARGS_EXT = (program as any).ext === undefined ? DEFAULT_EXT : (program as any).ext;
+const ARGS_EXT = (program as any).ext === undefined ? DEFAULT_EXT : (program as any).ext;
 let ARGS_FORMAT = (program as any).format;
 const ARGS_LIST_FORMATS = (program as any).listFormats !== undefined;
 let ARGS_VERTICAL_RESOLUTION = (program as any).verticalResolution;
@@ -108,9 +118,9 @@ const ARGS_PROXY_HOST = (program as any).proxyHost === undefined ? DEFAULT_PROXY
 const ARGS_PROXY_PORT = (program as any).proxyPort === undefined ? DEFAULT_PROXY_PORT : (program as any).proxyPort;
 let ARGS_COOKIES_DIR = (program as any).cookies;
 const ARGS_ADDITIONAL_OPTIONS = (program as any).additionalOptions === undefined ? '' : (program as any).additionalOptions;
+const ARGS_EXECUTABLE = (program as any).executable === undefined ? EXECUTABLE[0] : (program as any).executable;
 
 class YoutubeDLQuick {
-
   public async run() {
     console.log('Process starting ...');
 
@@ -121,11 +131,15 @@ class YoutubeDLQuick {
   private async _validate() {
     console.log('Process validating ...');
 
-    // validate youtube-dl installed or not
-    if (!shell.which('youtube-dl')) {
+    // validate executable installed or not
+    if (EXECUTABLE.indexOf(ARGS_EXECUTABLE) === -1) {
+      console.log(`Option "executable" value invalid: ${ARGS_EXECUTABLE}, valid options: ${JSON.stringify(EXECUTABLE)}`);
+      process.exit(1);
+    }
+    if (!shell.which(ARGS_EXECUTABLE)) {
       console.log(
-        'Command "youtube-dl" not found, you need to install it first.\n' +
-        'e.g OSX: brew install youtube-dl'
+        `Command "${ARGS_EXECUTABLE}" not found, you need to install it first.\n` +
+          'e.g OSX: brew install youtube-dl | brew install yt-dlp/taps/yt-dlp'
       );
       process.exit(1);
     }
@@ -139,9 +153,8 @@ class YoutubeDLQuick {
       IS_SOURCE_PLAYLIST = true;
       console.log('Download source is a playlist');
     }
-    if (!isUrl(ARGS_SOURCE)
-      && await LibFs.exists(ARGS_SOURCE)
-      && (await LibFs.stat(ARGS_SOURCE)).isFile()) { // means a file
+    if (!isUrl(ARGS_SOURCE) && (await LibFs.exists(ARGS_SOURCE)) && (await LibFs.stat(ARGS_SOURCE)).isFile()) {
+      // means a file
       IS_SOURCE_LISTFILE = true;
       console.log('Download source is a list file');
     }
@@ -170,8 +183,7 @@ class YoutubeDLQuick {
     // validate ARGS_VERTICAL_RESOLUTION
     if (ARGS_VERTICAL_RESOLUTION === undefined) {
       ARGS_VERTICAL_RESOLUTION = DEFAULT_VERTICAL_RESOLUTION;
-    } else if (ARGS_VERTICAL_RESOLUTION
-      && VALID_VERTICAL_RESOLUTION.indexOf(ARGS_VERTICAL_RESOLUTION) === -1) {
+    } else if (ARGS_VERTICAL_RESOLUTION && VALID_VERTICAL_RESOLUTION.indexOf(ARGS_VERTICAL_RESOLUTION) === -1) {
       console.log(`Option "vertical resolution" is restrict to one of ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}!`);
       process.exit(1);
     }
@@ -188,13 +200,11 @@ class YoutubeDLQuick {
       console.log('Option "cookies" required, please provide -C option!');
       process.exit(1);
     }
-
   }
 
   private async _process() {
-
     // prepare command base
-    let cmdBase = 'youtube-dl';
+    let cmdBase = ARGS_EXECUTABLE;
     if (!ARGS_DISABLE_PROXY) {
       cmdBase += ` --proxy ${ARGS_PROXY_PROTOCOL}://${ARGS_PROXY_HOST}:${ARGS_PROXY_PORT}`; // proxy
     }
@@ -222,7 +232,6 @@ class YoutubeDLQuick {
       // single url download
       await this._executeWithErrorHandling(cmdBase, ARGS_SOURCE);
     }
-
   }
 
   private async _processListFormats(cmdBase: string, source: string) {
@@ -239,7 +248,6 @@ class YoutubeDLQuick {
   }
 
   private async _executeWithErrorHandling(command: string, source: string) {
-
     const finalCommand = `${command} "${source}"`;
 
     try {
@@ -248,31 +256,28 @@ class YoutubeDLQuick {
       // unexpected error
       console.log(e);
     }
-
   }
 
   private _execute(command: string): Promise<void> {
-
     console.log(`execute command: ${command}`);
 
     return new Promise((resolve, reject) => {
       shell.exec(command, (code, stdout, stderr) => {
-
         // unexpected error
         if (code !== 0) {
           return reject(`Error in "${command}"\ncode: ${code}, stderr: ${stderr}`);
         }
 
         return resolve();
-
       });
     });
-
   }
-
 }
 
-new YoutubeDLQuick().run().then(_ => _).catch(_ => console.log(_));
+new YoutubeDLQuick()
+  .run()
+  .then((_) => _)
+  .catch((_) => console.log(_));
 
 process.on('uncaughtException', (error: Error) => {
   console.error(`Process on uncaughtException error = ${error.stack}`);
