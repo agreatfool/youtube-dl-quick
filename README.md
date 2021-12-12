@@ -1,11 +1,12 @@
 youtube-dl-quick
 ================
 
-youtube-dl is required. Please install it first.
+yt-dlp | youtube-dl is required. Please install it first.
 
 Mac user:
 
 ```
+brew install yt-dlp/taps/yt-dlp
 brew install youtube-dl
 ```
 
@@ -21,12 +22,12 @@ npm install youtube-dl-quick -g
 $ youtube-dl-quick -h
 Usage: index [options]
 
-youtube-dl-quick: quick usage wrapper for command youtube-dl
+youtube-dl-quick: quick usage wrapper for command yt-dlp | youtube-dl
 
 Options:
   -V, --version                       output the version number
   -s, --source <string>               download target, could be url or a list file
-  -o, --output_dir <dir>              output directory, default is "~/Downloads/youtube" if OSX
+  -o, --output-dir <dir>              output directory, default is "~/Downloads/youtube" if OSX
   -n, --output-name <string>          output name template, default is:
         single video: "[%(uploader)s] %(title)s.%(ext)s"
         video in list: "%(playlist)s/[%(uploader)s] %(title)s.%(ext)s"
@@ -48,7 +49,9 @@ Options:
   -R, --proxy-protocol <string>       proxy protocol, default is "socks5"
   -H, --proxy-host <string>           proxy host, default is "127.0.0.1"
   -P, --proxy-port <number>           proxy port, default is "6153"
+  -C, --cookies <string>              cookies.txt file dir, same as youtube-dl --cookies, default is ~/Downloads/youtube/cookies.txt
   -A, --additional-options <string>   additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions
+  -X, --executable <string>           which app used to handle the download task, default is "yt-dlp", optional is "youtube-dl"
   -h, --help                          display help for command
 ```
 
