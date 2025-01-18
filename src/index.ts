@@ -211,7 +211,7 @@ class YoutubeDLQuick {
     cmdBase += ` -o "${LibPath.join(ARGS_OUTPUT_DIR, ARGS_OUTPUT_NAME)}"`; // output template
     cmdBase += ` -f "${ARGS_FORMAT}"`; // format
     cmdBase += ' --ignore-errors'; // continue when error encountered
-    cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
+    // cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
     if (ARGS_ADDITIONAL_OPTIONS) {
       cmdBase += ` ${ARGS_ADDITIONAL_OPTIONS}`; // additional options
     }
