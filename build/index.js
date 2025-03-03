@@ -121,6 +121,7 @@ const ARGS_DEFAULT_DIR_DOWNLOADS = program.defaultOutputDownloads !== undefined;
 const ARGS_PLAY_VIDEO = program.playVideo !== undefined;
 const ARGS_BILIBILI = program.bilibili !== undefined;
 const ARGS_PLAYLIST = program.playlist !== undefined;
+let IS_LIST_DOWNLOADING = false;
 class YoutubeDLQuick {
     run() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -148,20 +149,21 @@ class YoutubeDLQuick {
                 process.exit(1);
             }
             if (isUrl(ARGS_SOURCE) && ARGS_SOURCE.indexOf('list') !== -1) {
-                IS_SOURCE_PLAYLIST = true; // self made playlist file, e.g ~/Downloads/youtube/list.txt
+                // means a list download url
+                IS_SOURCE_PLAYLIST = true;
                 console.log('Download source is a playlist');
             }
             if (!isUrl(ARGS_SOURCE) && (yield LibFs.exists(ARGS_SOURCE)) && (yield LibFs.stat(ARGS_SOURCE)).isFile()) {
-                // means a file
+                // means a file, e.g self made playlist file ~/Downloads/youtube/list.txt
                 IS_SOURCE_LISTFILE = true;
                 console.log('Download source is a list file');
             }
             // validate ARGS_OUTPUT_DIR
-            if (ARGS_OUTPUT_DIR === undefined && LibOs.platform() === 'darwin') {
-                ARGS_OUTPUT_DIR = DEFAULT_OUTPUT_DIR;
-            }
-            else if (ARGS_DEFAULT_DIR_DOWNLOADS && LibOs.platform() === 'darwin') {
+            if (ARGS_OUTPUT_DIR === undefined && ARGS_DEFAULT_DIR_DOWNLOADS && LibOs.platform() === 'darwin') {
                 ARGS_OUTPUT_DIR = DEFAULT_OUTPUT_DIR_DOWNLOADS;
+            }
+            else if (ARGS_OUTPUT_DIR === undefined && LibOs.platform() === 'darwin') {
+                ARGS_OUTPUT_DIR = DEFAULT_OUTPUT_DIR;
             }
             else if (ARGS_OUTPUT_DIR === undefined) {
                 console.log('Option "output dir" required, please provide -o option!');
@@ -207,6 +209,7 @@ class YoutubeDLQuick {
                 console.log('Option "cookies" required, please provide -C option!');
                 process.exit(1);
             }
+            IS_LIST_DOWNLOADING = IS_SOURCE_PLAYLIST || IS_SOURCE_LISTFILE || ARGS_PLAYLIST;
         });
     }
     _process() {
@@ -233,13 +236,17 @@ class YoutubeDLQuick {
             }
             // process download
             if (IS_SOURCE_PLAYLIST) {
-                // playlist
+                // youtube playlist
                 yield this._processPlaylistDownload(cmdBase);
             }
             else if (IS_SOURCE_LISTFILE) {
                 // list file
-                const output = yield this._processListFileDownload(cmdBase);
-                if (!IS_SOURCE_PLAYLIST && ARGS_PLAY_VIDEO) {
+                yield this._processListFileDownload(cmdBase);
+            }
+            else {
+                // single url download
+                const output = yield this._executeWithErrorHandling(cmdBase, ARGS_SOURCE);
+                if (!IS_LIST_DOWNLOADING && ARGS_PLAY_VIDEO) {
                     // try to play the video if asked and is not list downloading task
                     // try to match `[Merger] Merging formats into "downloaded file path"`, to get the file path
                     const regex = /\[Merger\] Merging formats into "(.+?)"/;
@@ -248,10 +255,6 @@ class YoutubeDLQuick {
                         this._executeWithErrorHandling('open', match[1]);
                     }
                 }
-            }
-            else {
-                // single url download
-                yield this._executeWithErrorHandling(cmdBase, ARGS_SOURCE);
             }
         });
     }
@@ -268,7 +271,7 @@ class YoutubeDLQuick {
     }
     _processListFileDownload(cmdBase) {
         return __awaiter(this, void 0, void 0, function* () {
-            return this._executeWithErrorHandling(`${cmdBase} --batch-file`, ARGS_SOURCE);
+            yield this._executeWithErrorHandling(`${cmdBase} --batch-file`, ARGS_SOURCE);
         });
     }
     _executeWithErrorHandling(command, source) {
