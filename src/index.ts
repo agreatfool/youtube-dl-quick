@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import * as LibFs from 'mz/fs';
 import * as LibPath from 'path';
@@ -11,6 +12,7 @@ import * as isUrl from 'is-url';
 const pkg = require('../package.json');
 
 const DEFAULT_OUTPUT_DIR = '~/Downloads/youtube';
+const DEFAULT_OUTPUT_DIR_DOWNLOADS = '~/Downloads';
 const DEFAULT_OUTPUT_NAME_SINGLE = '[%(uploader)s] %(title)s.%(ext)s';
 const DEFAULT_OUTPUT_NAME_LIST = `%(playlist)s/${DEFAULT_OUTPUT_NAME_SINGLE}`;
 const DEFAULT_VERTICAL_RESOLUTION = 'BEST';
@@ -93,7 +95,7 @@ program
     '-E, --vertical-resolution <number>',
     `vertical resolution, default is "BEST", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`
   )
-  .option('-D, --disable-proxy', 'disable proxy, by default it is enabled')
+  .option('-DP, --disable-proxy', 'disable proxy, by default it is enabled')
   .option('-R, --proxy-protocol <string>', 'proxy protocol, default is "socks5"')
   .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
   .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
@@ -102,23 +104,37 @@ program
     '-A, --additional-options <string>',
     'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions'
   )
-  .option('-X, --executable <string>', 'which app used to handle the download task, default is "yt-dlp", optional is "youtube-dl"')
+  .option('-D, --default-output-downloads', 'use ~/Downloads as the output dir')
+  .option('-XA, --executable-app <string>', 'which app used to handle the download task, default is "yt-dlp", optional is "youtube-dl"')
+  .option('-X, --play-video', 'will play the video after downloading')
+  .option(
+    '-B, --bilibili',
+    'will download video from bilibili\n' +
+      'the -f option would be omitted means best quality, provide -f if you want some specific format' +
+      'default cookie file would be ~/Downloads/youtube/bilibilicookies_ytdl.txt'
+  )
+  .option('-L, --playlist', 'will append --yes-playlist to download task to download the whole playlist videos')
   .parse(process.argv);
 
-const ARGS_SOURCE = (program as any).source;
-let ARGS_OUTPUT_DIR = (program as any).outputDir;
-let ARGS_OUTPUT_NAME = (program as any).outputName;
-const ARGS_EXT = (program as any).ext === undefined ? DEFAULT_EXT : (program as any).ext;
-let ARGS_FORMAT = (program as any).format;
+const ARGS_SOURCE = (program as any).source as string;
+let ARGS_OUTPUT_DIR = (program as any).outputDir as string;
+let ARGS_OUTPUT_NAME = (program as any).outputName as string;
+const ARGS_EXT = (program as any).ext === undefined ? DEFAULT_EXT : ((program as any).ext as string);
+const ARGS_FORMAT = (program as any).format as undefined | string;
+let PARSED_FORMAT = undefined; // ARGS_FORMAT -> parsing -> PARSED_FORMAT which is used to be specified in "-f"
 const ARGS_LIST_FORMATS = (program as any).listFormats !== undefined;
-let ARGS_VERTICAL_RESOLUTION = (program as any).verticalResolution;
+let ARGS_VERTICAL_RESOLUTION = (program as any).verticalResolution; // see VALID_VERTICAL_RESOLUTION
 const ARGS_DISABLE_PROXY = (program as any).disableProxy !== undefined;
-const ARGS_PROXY_PROTOCOL = (program as any).proxyProtocol === undefined ? DEFAULT_PROXY_PROTOCOL : (program as any).proxyProtocol;
-const ARGS_PROXY_HOST = (program as any).proxyHost === undefined ? DEFAULT_PROXY_HOST : (program as any).proxyHost;
-const ARGS_PROXY_PORT = (program as any).proxyPort === undefined ? DEFAULT_PROXY_PORT : (program as any).proxyPort;
-let ARGS_COOKIES_DIR = (program as any).cookies;
-const ARGS_ADDITIONAL_OPTIONS = (program as any).additionalOptions === undefined ? '' : (program as any).additionalOptions;
-const ARGS_EXECUTABLE = (program as any).executable === undefined ? EXECUTABLE[0] : (program as any).executable;
+const ARGS_PROXY_PROTOCOL = (program as any).proxyProtocol === undefined ? DEFAULT_PROXY_PROTOCOL : ((program as any).proxyProtocol as string);
+const ARGS_PROXY_HOST = (program as any).proxyHost === undefined ? DEFAULT_PROXY_HOST : ((program as any).proxyHost as string);
+const ARGS_PROXY_PORT = (program as any).proxyPort === undefined ? DEFAULT_PROXY_PORT : ((program as any).proxyPort as string);
+let ARGS_COOKIES_DIR = (program as any).cookies as string;
+const ARGS_ADDITIONAL_OPTIONS = (program as any).additionalOptions === undefined ? '' : ((program as any).additionalOptions as string);
+const ARGS_EXECUTABLE = (program as any).executableApp === undefined ? EXECUTABLE[0] : ((program as any).executableApp as string);
+const ARGS_DEFAULT_DIR_DOWNLOADS = (program as any).defaultOutputDownloads !== undefined;
+const ARGS_PLAY_VIDEO = (program as any).playVideo !== undefined;
+const ARGS_BILIBILI = (program as any).bilibili !== undefined;
+const ARGS_PLAYLIST = (program as any).playlist !== undefined;
 
 class YoutubeDLQuick {
   public async run() {
@@ -150,7 +166,7 @@ class YoutubeDLQuick {
       process.exit(1);
     }
     if (isUrl(ARGS_SOURCE) && ARGS_SOURCE.indexOf('list') !== -1) {
-      IS_SOURCE_PLAYLIST = true;
+      IS_SOURCE_PLAYLIST = true; // self made playlist file, e.g ~/Downloads/youtube/list.txt
       console.log('Download source is a playlist');
     }
     if (!isUrl(ARGS_SOURCE) && (await LibFs.exists(ARGS_SOURCE)) && (await LibFs.stat(ARGS_SOURCE)).isFile()) {
@@ -162,6 +178,8 @@ class YoutubeDLQuick {
     // validate ARGS_OUTPUT_DIR
     if (ARGS_OUTPUT_DIR === undefined && LibOs.platform() === 'darwin') {
       ARGS_OUTPUT_DIR = DEFAULT_OUTPUT_DIR;
+    } else if (ARGS_DEFAULT_DIR_DOWNLOADS && LibOs.platform() === 'darwin') {
+      ARGS_OUTPUT_DIR = DEFAULT_OUTPUT_DIR_DOWNLOADS;
     } else if (ARGS_OUTPUT_DIR === undefined) {
       console.log('Option "output dir" required, please provide -o option!');
       process.exit(1);
@@ -189,12 +207,18 @@ class YoutubeDLQuick {
     }
 
     // validate ARGS_FORMAT
-    if (ARGS_FORMAT === undefined) {
-      ARGS_FORMAT = DEFAULT_FORMAT[ARGS_EXT][ARGS_VERTICAL_RESOLUTION];
+    if (ARGS_FORMAT === undefined && !ARGS_BILIBILI) {
+      // set the format according to youtube rule if not bilibili video and not given
+      PARSED_FORMAT = DEFAULT_FORMAT[ARGS_EXT][ARGS_VERTICAL_RESOLUTION];
+    } else {
+      // use given format directly otherwise
+      PARSED_FORMAT = ARGS_FORMAT;
     }
 
     // validate ARGS_COOKIES_DIR
-    if (ARGS_COOKIES_DIR === undefined && LibOs.platform() === 'darwin') {
+    if (ARGS_COOKIES_DIR === undefined && LibOs.platform() === 'darwin' && ARGS_BILIBILI) {
+      ARGS_COOKIES_DIR = LibPath.join(DEFAULT_OUTPUT_DIR, 'bilibilicookies_ytdl.txt');
+    } else if (ARGS_COOKIES_DIR === undefined && LibOs.platform() === 'darwin') {
       ARGS_COOKIES_DIR = LibPath.join(DEFAULT_OUTPUT_DIR, 'cookies.txt');
     } else if (ARGS_COOKIES_DIR === undefined) {
       console.log('Option "cookies" required, please provide -C option!');
@@ -205,13 +229,17 @@ class YoutubeDLQuick {
   private async _process() {
     // prepare command base
     let cmdBase = ARGS_EXECUTABLE;
+    const targetFilePathPattern = LibPath.join(ARGS_OUTPUT_DIR, ARGS_OUTPUT_NAME);
     if (!ARGS_DISABLE_PROXY) {
       cmdBase += ` --proxy ${ARGS_PROXY_PROTOCOL}://${ARGS_PROXY_HOST}:${ARGS_PROXY_PORT}`; // proxy
     }
-    cmdBase += ` -o "${LibPath.join(ARGS_OUTPUT_DIR, ARGS_OUTPUT_NAME)}"`; // output template
-    cmdBase += ` -f "${ARGS_FORMAT}"`; // format
+    cmdBase += ` -o "${targetFilePathPattern}"`; // output template
+    cmdBase += PARSED_FORMAT ? ` -f "${PARSED_FORMAT}"` : ''; // format
     cmdBase += ' --ignore-errors'; // continue when error encountered
-    // cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
+    cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
+    if (ARGS_PLAYLIST) {
+      cmdBase += ` --yes-playlist`;
+    }
     if (ARGS_ADDITIONAL_OPTIONS) {
       cmdBase += ` ${ARGS_ADDITIONAL_OPTIONS}`; // additional options
     }
@@ -227,7 +255,16 @@ class YoutubeDLQuick {
       await this._processPlaylistDownload(cmdBase);
     } else if (IS_SOURCE_LISTFILE) {
       // list file
-      await this._processListFileDownload(cmdBase);
+      const output = await this._processListFileDownload(cmdBase);
+      if (!IS_SOURCE_PLAYLIST && ARGS_PLAY_VIDEO) {
+        // try to play the video if asked and is not list downloading task
+        // try to match `[Merger] Merging formats into "downloaded file path"`, to get the file path
+        const regex = /\[Merger\] Merging formats into "(.+?)"/;
+        const match = output.match(regex);
+        if (match && match[1]) {
+          this._executeWithErrorHandling('open', match[1]);
+        }
+      }
     } else {
       // single url download
       await this._executeWithErrorHandling(cmdBase, ARGS_SOURCE);
@@ -243,22 +280,23 @@ class YoutubeDLQuick {
     await this._executeWithErrorHandling(`${cmdBase} --yes-playlist`, ARGS_SOURCE);
   }
 
-  private async _processListFileDownload(cmdBase: string) {
-    await this._executeWithErrorHandling(`${cmdBase} --batch-file`, ARGS_SOURCE);
+  private async _processListFileDownload(cmdBase: string): Promise<string> {
+    return this._executeWithErrorHandling(`${cmdBase} --batch-file`, ARGS_SOURCE);
   }
 
-  private async _executeWithErrorHandling(command: string, source: string) {
+  private async _executeWithErrorHandling(command: string, source: string): Promise<string> {
     const finalCommand = `${command} "${source}"`;
 
     try {
-      await this._execute(finalCommand);
+      return this._execute(finalCommand);
     } catch (e) {
       // unexpected error
       console.log(e);
+      return e;
     }
   }
 
-  private _execute(command: string): Promise<void> {
+  private _execute(command: string): Promise<string> {
     console.log(`execute command: ${command}`);
 
     return new Promise((resolve, reject) => {
@@ -268,7 +306,7 @@ class YoutubeDLQuick {
           return reject(`Error in "${command}"\ncode: ${code}, stderr: ${stderr}`);
         }
 
-        return resolve();
+        return resolve(stdout);
       });
     });
   }
