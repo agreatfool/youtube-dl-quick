@@ -88,7 +88,7 @@ program
     '\t\t-E 2160: "315+140" if 60fps available, "313+140" if not')
     .option('-F, --list-formats', 'same as youtube-dl -F, list all available formats of video')
     .option('-E, --vertical-resolution <number>', `vertical resolution, default is "BEST", available options: ${JSON.stringify(VALID_VERTICAL_RESOLUTION)}`)
-    .option('-DP, --disable-proxy', 'disable proxy, by default it is enabled')
+    .option('-DP, --enable-proxy', 'enable proxy, by default proxy is disabled')
     .option('-R, --proxy-protocol <string>', 'proxy protocol, default is "socks5"')
     .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
     .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
@@ -110,7 +110,7 @@ const ARGS_FORMAT = program.format;
 let PARSED_FORMAT = undefined; // ARGS_FORMAT -> parsing -> PARSED_FORMAT which is used to be specified in "-f"
 const ARGS_LIST_FORMATS = program.listFormats !== undefined;
 let ARGS_VERTICAL_RESOLUTION = program.verticalResolution; // see VALID_VERTICAL_RESOLUTION
-const ARGS_DISABLE_PROXY = program.disableProxy !== undefined;
+const ARGS_ENABLE_PROXY = program.enableProxy !== undefined;
 const ARGS_PROXY_PROTOCOL = program.proxyProtocol === undefined ? DEFAULT_PROXY_PROTOCOL : program.proxyProtocol;
 const ARGS_PROXY_HOST = program.proxyHost === undefined ? DEFAULT_PROXY_HOST : program.proxyHost;
 const ARGS_PROXY_PORT = program.proxyPort === undefined ? DEFAULT_PROXY_PORT : program.proxyPort;
@@ -217,7 +217,7 @@ class YoutubeDLQuick {
             // prepare command base
             let cmdBase = ARGS_EXECUTABLE;
             const targetFilePathPattern = LibPath.join(ARGS_OUTPUT_DIR, ARGS_OUTPUT_NAME);
-            if (!ARGS_DISABLE_PROXY) {
+            if (ARGS_ENABLE_PROXY) {
                 cmdBase += ` --proxy ${ARGS_PROXY_PROTOCOL}://${ARGS_PROXY_HOST}:${ARGS_PROXY_PORT}`; // proxy
             }
             cmdBase += ` -o "${targetFilePathPattern}"`; // output template
