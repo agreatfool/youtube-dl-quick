@@ -100,7 +100,7 @@ program
   .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
   .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
   .option('-C, --cookies <string>', 'cookies.txt file dir, same as youtube-dl --cookies, default is ~/Downloads/youtube/cookies.txt')
-  .option('-DC, --disable-cookies', 'remove cookie from request, default is false')
+  .option('-EC, --enable-cookies', "enable --cookies in the request, default is false won't use cookies")
   .option(
     '-A, --additional-options <string>',
     'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions'
@@ -130,7 +130,7 @@ const ARGS_PROXY_PROTOCOL = (program as any).proxyProtocol === undefined ? DEFAU
 const ARGS_PROXY_HOST = (program as any).proxyHost === undefined ? DEFAULT_PROXY_HOST : ((program as any).proxyHost as string);
 const ARGS_PROXY_PORT = (program as any).proxyPort === undefined ? DEFAULT_PROXY_PORT : ((program as any).proxyPort as string);
 let ARGS_COOKIES_DIR = (program as any).cookies as string;
-const ARGS_DISABLE_COOKIES = (program as any).disableCookies === undefined ? false : true;
+const ARGS_ENABLE_COOKIES = (program as any).enableCookies === undefined ? false : true;
 const ARGS_ADDITIONAL_OPTIONS = (program as any).additionalOptions === undefined ? '' : ((program as any).additionalOptions as string);
 const ARGS_EXECUTABLE = (program as any).executableApp === undefined ? EXECUTABLE[0] : ((program as any).executableApp as string);
 const ARGS_DEFAULT_DIR_DOWNLOADS = (program as any).defaultOutputDownloads !== undefined;
@@ -242,7 +242,7 @@ class YoutubeDLQuick {
     cmdBase += ` -o "${targetFilePathPattern}"`; // output template
     cmdBase += PARSED_FORMAT ? ` -f "${PARSED_FORMAT}"` : ''; // format
     cmdBase += ' --ignore-errors'; // continue when error encountered
-    if (!ARGS_DISABLE_COOKIES) {
+    if (ARGS_ENABLE_COOKIES) {
       cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
     }
     if (ARGS_PLAYLIST) {
