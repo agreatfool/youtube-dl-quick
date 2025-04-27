@@ -93,6 +93,7 @@ program
     .option('-H, --proxy-host <string>', 'proxy host, default is "127.0.0.1"')
     .option('-P, --proxy-port <number>', 'proxy port, default is "6153"')
     .option('-C, --cookies <string>', 'cookies.txt file dir, same as youtube-dl --cookies, default is ~/Downloads/youtube/cookies.txt')
+    .option('-DC, --disable-cookies', 'remove cookie from request, default is false')
     .option('-A, --additional-options <string>', 'additional options, would be appended with built command directly, e.g: $builtCommand $additionalOptions')
     .option('-D, --default-output-downloads', 'use ~/Downloads as the output dir')
     .option('-XA, --executable-app <string>', 'which app used to handle the download task, default is "yt-dlp", optional is "youtube-dl"')
@@ -115,6 +116,7 @@ const ARGS_PROXY_PROTOCOL = program.proxyProtocol === undefined ? DEFAULT_PROXY_
 const ARGS_PROXY_HOST = program.proxyHost === undefined ? DEFAULT_PROXY_HOST : program.proxyHost;
 const ARGS_PROXY_PORT = program.proxyPort === undefined ? DEFAULT_PROXY_PORT : program.proxyPort;
 let ARGS_COOKIES_DIR = program.cookies;
+const ARGS_DISABLE_COOKIES = program.disableCookies === undefined ? false : true;
 const ARGS_ADDITIONAL_OPTIONS = program.additionalOptions === undefined ? '' : program.additionalOptions;
 const ARGS_EXECUTABLE = program.executableApp === undefined ? EXECUTABLE[0] : program.executableApp;
 const ARGS_DEFAULT_DIR_DOWNLOADS = program.defaultOutputDownloads !== undefined;
@@ -223,7 +225,9 @@ class YoutubeDLQuick {
             cmdBase += ` -o "${targetFilePathPattern}"`; // output template
             cmdBase += PARSED_FORMAT ? ` -f "${PARSED_FORMAT}"` : ''; // format
             cmdBase += ' --ignore-errors'; // continue when error encountered
-            cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
+            if (!ARGS_DISABLE_COOKIES) {
+                cmdBase += ` --cookies ${ARGS_COOKIES_DIR}`;
+            }
             if (ARGS_PLAYLIST) {
                 cmdBase += ` --yes-playlist`;
             }
