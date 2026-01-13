@@ -23,7 +23,7 @@
     "commander": "5.1.0",
     "is-url": "1.2.4",
     "mz": "2.7.0",
-    "shelljs": "0.8.4"
+    "shelljs": "0.8.5"
   },
   "devDependencies": {
     "@types/node": "14.0.14",
